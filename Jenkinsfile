@@ -67,7 +67,7 @@ pipeline {
                         # Build and push unstable image (main branch)
                         docker build -t \$DOCKER_USER/sentiment-api:unstable .
                         docker push \$DOCKER_USER/sentiment-api:unstable
-                        docker system prune -f
+                        
                         # Clone stable-fallback branch and build stable image
                         git clone --branch stable-fallback --depth 1 \$(git remote get-url origin) /tmp/stable-build
                         docker build -t \$DOCKER_USER/sentiment-api:stable /tmp/stable-build
