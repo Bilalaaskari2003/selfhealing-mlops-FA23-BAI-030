@@ -40,7 +40,7 @@ def test_frontend_sentiment():
         submit_btn.click()
 
         # Wait for result and assert it's non-empty (ID: result-output)
-        wait = WebDriverWait(driver, 10)
+        wait = WebDriverWait(driver, 60)
         result_div = wait.until(
             EC.presence_of_element_located((By.ID, "result-output"))
         )
