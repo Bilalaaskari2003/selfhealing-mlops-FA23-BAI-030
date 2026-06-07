@@ -19,8 +19,7 @@
  headers:{'Content-Type':'application/json'},body:JSON.stringify({text})});
  const data = await res.json();
  const el = document.getElementById('result-output');
- el.textContent = data.label + ' — Confidence: 
-'+(data.confidence*100).toFixed(1)+'%';
+ el.textContent = data.label + ' — Confidence: '+(data.confidence*100).toFixed(1)+'%';
  el.className = data.label==='POSITIVE'?'positive':'negative';
  }
  </script></body></html>
