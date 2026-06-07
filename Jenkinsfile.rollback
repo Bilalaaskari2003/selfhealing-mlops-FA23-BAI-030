@@ -1,0 +1,16 @@
+pipeline {
+    agent any
+
+    stages {
+
+        stage('Switch Traffic to Stable (Green)') {
+            steps {
+                sh """
+                    kubectl patch service sentiment-api-service \
+                        -p '{"spec":{"selector":{"slot":"green"}}}'
+                """
+            }
+        }
+
+    }
+}
