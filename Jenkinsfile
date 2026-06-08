@@ -2,8 +2,12 @@ pipeline {
     agent any
 
     environment {
+        DOCKERHUB_CREDENTIALS = credentials('dockerhub-credentials')
+        DOCKERHUB_USER = 'bilalaskari'  // Replace with your username
+        IMAGE_UNSTABLE = "${DOCKERHUB_USER}/sentiment-api:unstable"
+        IMAGE_STABLE   = "${DOCKERHUB_USER}/sentiment-api:stable"
         APP_CONTAINER  = "sentiment-app-test"
-        DOCKER_NETWORK = "sentiment-net"
+        APP_PORT       = "5000"
     }
 
     stages {
@@ -16,16 +20,26 @@ pipeline {
         stage('Build and Run') {
             steps {
                 sh """
+                    # Clean up previous container
                     docker rm -f ${APP_CONTAINER} || true
-                    docker network rm ${DOCKER_NETWORK} || true
-                    docker build -t sentiment-api:unstable .
-                    docker network create ${DOCKER_NETWORK} || true
-                    docker run -d \
-                        --name ${APP_CONTAINER} \
-                        --network ${DOCKER_NETWORK} \
-                        -p 5000:5000 \
-                        sentiment-api:unstable
-                    sleep 10
+                    
+                    # Build unstable image
+                    docker build -t ${IMAGE_UNSTABLE} .
+                    
+                    # Run container with host network (faster, no DNS)
+                    docker run -d --name ${APP_CONTAINER} \
+                        --network host \
+                        ${IMAGE_UNSTABLE}
+                    
+                    # Health check instead of fixed sleep
+                    for i in \$(seq 1 30); do
+                        if curl -sf http://localhost:${APP_PORT}/health; then
+                            echo "App is ready!"
+                            break
+                        fi
+                        echo "Waiting for app to start... (\${i}/30)"
+                        sleep 1
+                    done
                 """
             }
         }
@@ -34,10 +48,10 @@ pipeline {
             steps {
                 sh """
                     docker run --rm \
-                        --network ${DOCKER_NETWORK} \
-                        -e BASE_URL=http://${APP_CONTAINER}:5000 \
-                        sentiment-api:unstable \
-                        pytest tests/test_api.py -v
+                        --network host \
+                        -e BASE_URL=http://localhost:${APP_PORT} \
+                        ${IMAGE_UNSTABLE} \
+                        bash -c "pytest tests/test_api.py -v --tb=short"
                 """
             }
         }
@@ -46,33 +60,35 @@ pipeline {
             steps {
                 sh """
                     docker run --rm \
-                        --network ${DOCKER_NETWORK} \
-                        -e BASE_URL=http://${APP_CONTAINER}:5000 \
-                        sentiment-api:unstable \
-                        pytest tests/test_ui.py -v
+                        --network host \
+                        -e APP_URL=http://localhost:${APP_PORT} \
+                        --shm-size=2g \
+                        selenium/standalone-chrome:latest \
+                        bash -c "pip install selenium pytest requests -q && pytest tests/test_ui.py -v --tb=short"
                 """
             }
         }
 
         stage('Build and Push') {
             steps {
-                withCredentials([usernamePassword(
-                    credentialsId: 'dockerhub-creds',
-                    usernameVariable: 'DOCKER_USER',
-                    passwordVariable: 'DOCKER_PASS'
-                )]) {
-                    sh """
-                        echo \$DOCKER_PASS | docker login -u \$DOCKER_USER --password-stdin
-                        docker build -t \$DOCKER_USER/sentiment-api:unstable .
-                        docker push \$DOCKER_USER/sentiment-api:unstable
-                        
-                        rm -rf /tmp/stable-build
-                        git clone --branch stable-fallback --depth 1 \$(git remote get-url origin) /tmp/stable-build
-                        docker build -t \$DOCKER_USER/sentiment-api:stable /tmp/stable-build
-                        docker push \$DOCKER_USER/sentiment-api:stable
-                        rm -rf /tmp/stable-build
-                    """
-                }
+                sh """
+                    echo \${DOCKERHUB_CREDENTIALS_PSW} | docker login -u \${DOCKERHUB_CREDENTIALS_USR} --password-stdin
+                    
+                    # Push unstable image
+                    docker push ${IMAGE_UNSTABLE}
+                    
+                    # Build stable image WITHOUT cloning entire repo
+                    # Just checkout the stable-fallback branch temporarily
+                    git fetch origin stable-fallback
+                    git show origin/stable-fallback:app.py > /tmp/app-stable.py
+                    mv /tmp/app-stable.py app.py
+                    
+                    docker build -t ${IMAGE_STABLE} .
+                    docker push ${IMAGE_STABLE}
+                    
+                    # Restore original app.py
+                    git checkout HEAD -- app.py
+                """
             }
         }
 
@@ -80,10 +96,14 @@ pipeline {
             steps {
                 sh """
                     export KUBECONFIG=/var/lib/jenkins/.kube/config
+                    
+                    # Apply configurations
                     kubectl apply -f k8s/pvc.yaml
                     kubectl apply -f k8s/blue-deployment.yaml
                     kubectl apply -f k8s/green-deployment.yaml
                     kubectl apply -f k8s/service.yaml
+                    
+                    # Wait for deployment
                     kubectl rollout status deployment/sentiment-blue-deployment --timeout=120s
                 """
             }
@@ -93,9 +113,8 @@ pipeline {
     post {
         always {
             sh """
-                docker stop ${APP_CONTAINER}  || true
-                docker rm   ${APP_CONTAINER}  || true
-                docker network rm ${DOCKER_NETWORK} || true
+                docker rm -f ${APP_CONTAINER} || true
+                docker logout || true
             """
         }
     }
