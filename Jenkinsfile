@@ -16,6 +16,8 @@ pipeline {
         stage('Build and Run') {
             steps {
                 sh """
+                    docker rm -f ${APP_CONTAINER} || true
+                    docker network rm ${DOCKER_NETWORK} || true
                     docker build -t sentiment-api:unstable .
                     docker network create ${DOCKER_NETWORK} || true
                     docker run -d \
