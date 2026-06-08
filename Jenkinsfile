@@ -7,7 +7,6 @@ pipeline {
     }
 
     stages {
-
         stage('Fetch') {
             steps {
                 checkout scm
@@ -24,7 +23,6 @@ pipeline {
                         --network ${DOCKER_NETWORK} \
                         -p 5000:5000 \
                         sentiment-api:unstable
-                    echo "Waiting for app to start..."
                     sleep 20
                 """
             }
@@ -63,13 +61,10 @@ pipeline {
                 )]) {
                     sh """
                         echo \$DOCKER_PASS | docker login -u \$DOCKER_USER --password-stdin
-
-                        # Build and push unstable image (main branch)
                         docker build -t \$DOCKER_USER/sentiment-api:unstable .
                         docker push \$DOCKER_USER/sentiment-api:unstable
-                        
-                        # Clone stable-fallback branch and build stable image
-                        
+                        docker system prune -f
+                        rm -rf /tmp/stable-build
                         git clone --branch stable-fallback --depth 1 \$(git remote get-url origin) /tmp/stable-build
                         docker build -t \$DOCKER_USER/sentiment-api:stable /tmp/stable-build
                         docker push \$DOCKER_USER/sentiment-api:stable
@@ -82,14 +77,15 @@ pipeline {
         stage('Deploy to Minikube') {
             steps {
                 sh """
+                    export KUBECONFIG=/var/lib/jenkins/.kube/config
                     kubectl apply -f k8s/pvc.yaml
                     kubectl apply -f k8s/blue-deployment.yaml
                     kubectl apply -f k8s/green-deployment.yaml
                     kubectl apply -f k8s/service.yaml
+                    kubectl rollout status deployment/sentiment-blue-deployment --timeout=120s
                 """
             }
         }
-
     }
 
     post {
