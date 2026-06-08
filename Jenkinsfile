@@ -25,7 +25,7 @@ pipeline {
                         --network ${DOCKER_NETWORK} \
                         -p 5000:5000 \
                         sentiment-api:unstable
-                    sleep 20
+                    sleep 10
                 """
             }
         }
@@ -65,7 +65,7 @@ pipeline {
                         echo \$DOCKER_PASS | docker login -u \$DOCKER_USER --password-stdin
                         docker build -t \$DOCKER_USER/sentiment-api:unstable .
                         docker push \$DOCKER_USER/sentiment-api:unstable
-                        docker system prune -f
+                        
                         rm -rf /tmp/stable-build
                         git clone --branch stable-fallback --depth 1 \$(git remote get-url origin) /tmp/stable-build
                         docker build -t \$DOCKER_USER/sentiment-api:stable /tmp/stable-build
