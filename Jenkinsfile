@@ -2,7 +2,7 @@ pipeline {
     agent any
 
     environment {
-        DOCKERHUB_CREDENTIALS = credentials('dockerhub-credentials')
+        DOCKERHUB_CREDENTIALS = credentials('dockerhub-creds')
         DOCKERHUB_USER = 'bilalaskari'  // Replace with your username
         IMAGE_UNSTABLE = "${DOCKERHUB_USER}/sentiment-api:unstable"
         IMAGE_STABLE   = "${DOCKERHUB_USER}/sentiment-api:stable"
