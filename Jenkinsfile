@@ -61,6 +61,7 @@ pipeline {
                 sh """
                     docker run --rm \
                         --network host \
+                        -v \$(pwd)/tests:/tests \
                         -e APP_URL=http://localhost:${APP_PORT} \
                         --shm-size=2g \
                         selenium/standalone-chrome:latest \
