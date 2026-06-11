@@ -16,7 +16,7 @@ CONFIDENCE_GAUGE = Gauge(
 
 # ── Target: app running via Minikube NodePort ─────────────────────────────────
 # Change <EC2-IP> to your actual EC2 public IP before running
-APP_URL = "http://localhost:32500/api/latest-confidence"
+APP_URL = "http://3.222.182.127/:32500/api/latest-confidence"
 
 POLL_INTERVAL = 5   # seconds
 DEFAULT_VALUE  = 1.0
