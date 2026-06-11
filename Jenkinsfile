@@ -33,7 +33,7 @@ pipeline {
 
                     # Health check instead of fixed sleep
                     for i in $(seq 1 30); do
-                        if curl -sf http://3.222.182.127:${APP_PORT}/health; then
+                        if curl -sf http://localhost:${APP_PORT}/health; then
                             echo "App is ready!"
                             break
                         fi
@@ -49,7 +49,7 @@ pipeline {
                 sh '''
                     docker run --rm \
                         --network host \
-                        -e BASE_URL=http://3.222.182.127:${APP_PORT} \
+                        -e BASE_URL=http://localhost:${APP_PORT} \
                         ${IMAGE_UNSTABLE} \
                         bash -c "pytest tests/test_api.py -v --tb=short"
                 '''
@@ -62,7 +62,7 @@ pipeline {
                     docker run --rm \
                         --network host \
                         -v $(pwd)/tests:/tests \
-                        -e APP_URL=http://3.222.182.127:${APP_PORT} \
+                        -e APP_URL=http://localhost:${APP_PORT} \
                         --shm-size=2g \
                         selenium/standalone-chrome:latest \
                         bash -c "pip install selenium pytest requests -q && pytest tests/test_ui.py -v --tb=short"
