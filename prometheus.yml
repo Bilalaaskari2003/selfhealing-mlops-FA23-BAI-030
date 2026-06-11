@@ -11,10 +11,10 @@ alerting:
   alertmanagers:
     - static_configs:
         - targets:
-            - "localhost:9093"
+            - "3.222.182.127:9093"
 
 # ── Scrape config ──────────────────────────────────────────────────────────────
 scrape_configs:
   - job_name: 'sentiment-ml-exporter'        # EXACT name checked by grading script
     static_configs:
-      - targets: ['localhost:8000']
+      - targets: ['3.222.182.127:8000']
