@@ -1,17 +1,17 @@
 pipeline {
     agent any
-
     stages {
-
         stage('Switch Traffic to Stable (Green)') {
             steps {
                 sh """
                     kubectl patch service sentiment-api-service \
                         -p '{"spec":{"selector":{"slot":"green"}}}'
-                    sudo systemctl restart kubectl-portforward
+                    sleep 2
+                    curl -X POST http://localhost:5000/reset || true
+                    sudo systemctl restart kubectl-portforward || true
+                    sleep 5
                 """
             }
         }
-
     }
 }
